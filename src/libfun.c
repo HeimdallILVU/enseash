@@ -150,7 +150,6 @@ void process_inputs() {
         } else if (WIFSIGNALED(status)) {
             print_header_sign(WTERMSIG(status), elapsed_time);
         } 
-
         
     }
 }
