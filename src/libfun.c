@@ -59,6 +59,10 @@ void fork_error() {
     print_error(FORK_ERROR);
 }
 
+void exec_error() {
+    print_error(EXEC_ERROR);
+}
+
 int internal_command(char * input) {
     if(strcmp(input, "exit") == 0) {
         print_exit();
@@ -67,7 +71,7 @@ int internal_command(char * input) {
     return 0;
 }
 
-int exec_fun(char * input) {
+int exec_fun(char * input, char * args[]) {
     int status;
     __pid_t pid;
     if((pid = fork()) == -1) {
@@ -76,7 +80,9 @@ int exec_fun(char * input) {
 
     if(pid == 0) { // I'm the son
 
-        execlp(input, input, NULL);
+        execvp(input, args);
+        exec_error();
+        exit(EXIT_FAILURE);
 
     } else { // I'm the father
 
@@ -91,9 +97,22 @@ int input_interpreter(char * input, int size) {
     int status;
     input[size - 1] = '\0'; // remove the '\n'
 
+    char ** args = malloc(sizeof(char *) * strlen(input));
+    char * token;
+    int index = 0;
+    token = strtok(input, SEPARATOR); // Cut the input string into arguments using the SEPARATOR as Separator. "hostname -i" -> "hostname" "-i"
+ 
+    while(token != NULL) {
+        args[index] = token;
+        index += 1;
+        token = strtok(NULL, SEPARATOR);
+    }
+
+    args[index] = NULL; // Adding the NULL value so the execvp know it's the end of the args
+
 
     if((status = internal_command(input)) == 0) { // checking and running commands if they are custom to this shell
-        status = exec_fun(input);
+        status = exec_fun(args[0], args);
     }
 
     return status;

@@ -5,7 +5,9 @@
 #define WRITE_ERROR "Erreur lors d'un write.\n"
 #define READ_ERROR "Erreur lors d'un read.\n"
 #define FORK_ERROR "Erreur lors d'un fork.\n"
+#define EXEC_ERROR "Erreur lors d'un exec.\n"
 
+#define SEPARATOR " "
 
 #define HEADER "enseash % "
 #define HEADER_EXIT "enseash [exit : %d | %ld ms] %% "
