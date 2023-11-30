@@ -8,8 +8,11 @@
 
 
 #define HEADER "enseash % "
+#define HEADER_EXIT "enseash [exit : %d] %% "
+#define HEADER_SIGN "enseash [sign : %d] %% "
 
 #define MAX_INPUT_SIZE 256
+#define MAX_OUTPUT_SIZE 256
 
 // ----- FUN -----------
 

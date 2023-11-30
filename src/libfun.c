@@ -27,6 +27,18 @@ void print_header() {
     print_message(HEADER);
 }
 
+void print_header_exit(int status) {
+    char output[MAX_OUTPUT_SIZE];
+    sprintf(output, HEADER_EXIT, status);
+    print_message(output);
+}
+
+void print_header_sign(int status) {
+    char output[MAX_OUTPUT_SIZE];
+    sprintf(output, HEADER_SIGN, status);
+    print_message(output);
+}
+
 void print_error(char * message) {
     write(STDERR_FILENO, message, strlen(message));
 }
@@ -72,18 +84,23 @@ int exec_fun(char * input) {
 } 
 
 int input_interpreter(char * input, int size) {
+    int status;
     input[size - 1] = '\0'; // remove the '\n'
 
-    if(internal_command(input) == 0) { // checking and running commands if they are custom to this shell
-        exec_fun(input);
+    if((status = internal_command(input)) == 0) { // checking and running commands if they are custom to this shell
+        status = exec_fun(input);
     }
 
-    return 0;
+    return status;
 }
 
 void process_inputs() {
     char input[MAX_INPUT_SIZE];
+    
     ssize_t byteread;
+
+    int status;
+
     while(1) { // Infinite loop reading the input of the users.
 
         if((byteread = read(STDIN_FILENO, input, sizeof(input))) == -1) {
@@ -94,9 +111,16 @@ void process_inputs() {
                 exit(EXIT_SUCCESS);
             }
 
-            input_interpreter(input, byteread);
+            status = input_interpreter(input, byteread);
         }
-        print_header();
+
+        if (WIFEXITED(status)) {
+            print_header_exit(WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            print_header_sign(WTERMSIG(status));
+        } 
+
+        
     }
 }
 
