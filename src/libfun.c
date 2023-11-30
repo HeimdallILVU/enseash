@@ -1,7 +1,11 @@
+#define __USE_POSIX199309 1 // for time.h to define timespec and all
+#include <time.h>
+
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 
 #include <sys/wait.h>
 
@@ -27,15 +31,15 @@ void print_header() {
     print_message(HEADER);
 }
 
-void print_header_exit(int status) {
+void print_header_exit(int status, long elapsed_time) {
     char output[MAX_OUTPUT_SIZE];
-    sprintf(output, HEADER_EXIT, status);
+    sprintf(output, HEADER_EXIT, status, elapsed_time);
     print_message(output);
 }
 
-void print_header_sign(int status) {
+void print_header_sign(int status, long elapsed_time) {
     char output[MAX_OUTPUT_SIZE];
-    sprintf(output, HEADER_SIGN, status);
+    sprintf(output, HEADER_SIGN, status, elapsed_time);
     print_message(output);
 }
 
@@ -87,6 +91,7 @@ int input_interpreter(char * input, int size) {
     int status;
     input[size - 1] = '\0'; // remove the '\n'
 
+
     if((status = internal_command(input)) == 0) { // checking and running commands if they are custom to this shell
         status = exec_fun(input);
     }
@@ -101,6 +106,9 @@ void process_inputs() {
 
     int status;
 
+    struct timespec start_time, end_time; // structs to handle time measurement
+    long elapsed_time;
+
     while(1) { // Infinite loop reading the input of the users.
 
         if((byteread = read(STDIN_FILENO, input, sizeof(input))) == -1) {
@@ -110,14 +118,18 @@ void process_inputs() {
                 print_exit();
                 exit(EXIT_SUCCESS);
             }
-
+            clock_gettime(_POSIX_MONOTONIC_CLOCK, &start_time); 
             status = input_interpreter(input, byteread);
+            clock_gettime(_POSIX_MONOTONIC_CLOCK, &end_time);
+
+            elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_nsec - start_time.tv_nsec) / 1e6; // Convert time to ms
+
         }
 
-        if (WIFEXITED(status)) {
-            print_header_exit(WEXITSTATUS(status));
+        if (WIFEXITED(status)) { // Change the Header following the returned status of the previous command
+            print_header_exit(WEXITSTATUS(status), elapsed_time);
         } else if (WIFSIGNALED(status)) {
-            print_header_sign(WTERMSIG(status));
+            print_header_sign(WTERMSIG(status), elapsed_time);
         } 
 
         
