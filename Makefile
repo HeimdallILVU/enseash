@@ -5,7 +5,7 @@ LDFLAGS :=
 SRC := main.c $(wildcard src/*.c)   # Add your source files here
 OBJ := $(SRC:.c=.o)
 
-TARGET := main
+TARGET := enseash
 
 all: $(TARGET)
 
