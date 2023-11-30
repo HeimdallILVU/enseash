@@ -7,6 +7,7 @@
 #define FORK_ERROR "Erreur lors d'un fork.\n"
 #define EXEC_ERROR "Erreur lors d'un exec.\n"
 #define FD_ERROR "Erreur lors d'un open.\n"
+#define PIPE_ERROR "Erreur lors d'un pipe.\n"
 
 #define SEPARATOR " "
 

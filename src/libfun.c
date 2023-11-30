@@ -98,9 +98,71 @@ int exec_fun(char * input, char * args[]) {
     return status;
 } 
 
-int input_interpreter(char * input, int size) {
-    int status;
+void splitArrays(char* inputStrings[], int numStrings, char*** before, char*** after) {
+    // Find the index of the "|" string
+    int index = -1;
+    for (int i = 0; i < numStrings; i++) {
+        if (strcmp(inputStrings[i], "|") == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    // If "|" is not found, set index to the end of the array
+    if (index == -1) {
+        index = numStrings;
+    }
+
+    // Allocate memory for the "before" array
+    *before = (char**)malloc(index * sizeof(char*));
+
+    // Copy strings before "|"
+    for (int i = 0; i < index; i++) {
+        (*before)[i] = strdup(inputStrings[i]);
+    }
+
+    // Allocate memory for the "after" array
+    *after = (char**)malloc((numStrings - index) * sizeof(char*));
+
+    // Copy strings after "|"
+    for (int i = index; i < numStrings; i++) {
+        (*after)[i - index] = strdup(inputStrings[i]);
+    }
+}
+
+char ** input_formater(char * input, int size) {
+
     input[size - 1] = '\0'; // remove the '\n'
+
+    char ** args = malloc(sizeof(char *) * strlen(input));
+    char * token;
+    int index = 0;
+    token = strtok(input, SEPARATOR); // Cut the input string into arguments using the SEPARATOR as Separator. "hostname -i" -> "hostname" "-i"
+    
+    while(token != NULL) {
+        args[index] = token;
+        index += 1;
+        token = strtok(NULL, SEPARATOR);
+        
+    }
+
+    args[index] = NULL; // Adding the NULL value so the execvp know it's the end of the args
+
+    return args;
+}
+
+int get_number_of_args(char * args[]) {
+    char * token = args[0];
+    int index = 0;
+    while (token != NULL) {
+        index += 1;
+        token = args[index];
+    }
+    return index -1;
+}
+
+int input_interpreter(char ** args) {
+    int status;
 
     int saved_stdin = -1; // Saving the STD In and Out in case they are modfified later on.
     int saved_stdout = -1;
@@ -108,20 +170,60 @@ int input_interpreter(char * input, int size) {
     saved_stdin = dup(STDIN_FILENO);
     saved_stdout = dup(STDOUT_FILENO);
 
-    char ** args = malloc(sizeof(char *) * strlen(input));
-    char * token;
     int index = 0;
-    token = strtok(input, SEPARATOR); // Cut the input string into arguments using the SEPARATOR as Separator. "hostname -i" -> "hostname" "-i"
- 
-    while(token != NULL) {
-        args[index] = token;
-        index += 1;
-        token = strtok(NULL, SEPARATOR);
-    }
+    char * token = args[index];
 
-    args[index] = NULL; // Adding the NULL value so the execvp know it's the end of the args
+    int size = get_number_of_args(args);
+
+    while(token != NULL) { // Looking for '|' in the args
+        if(strcmp(token, "|") == 0) {
+            // Cutting args in two, before and after, and running then as separate inputs but with dup2(STDOUT, STDIN)
+
+            char ** args1;
+            char ** args2;
+
+            //makes args1 and args2 from args
+
+            splitArrays(args, size, &args1, &args2);
+            args2 += 1;
+            
+            int pipe_fd[2];
+            int ret;
+            if((ret = pipe(pipe_fd)) == -1) {
+                print_error(PIPE_ERROR);
+            }
+
+            pid_t pid;
+
+            if((pid = fork()) == -1 ) {
+                fork_error();
+            }
+
+            if(pid == 0) { // I'm the son
+                close(pipe_fd[0]);
+                dup2(pipe_fd[1], STDOUT_FILENO);
+                execvp(args1[0], args1);
+                close(pipe_fd[1]);
+                exit(EXIT_SUCCESS);
+
+            } else { // I'm the father
+                close(pipe_fd[1]);
+                wait(&status);
+                int saved_stdin = dup(STDIN_FILENO);
+                dup2(pipe_fd[0], STDIN_FILENO);
+                status = input_interpreter(args2);
+                dup2(saved_stdin, STDIN_FILENO);
+                close(pipe_fd[0]);
+            }
+
+            return status;
+        } 
 
     
+        index += 1;
+        token = args[index];
+    }
+
     index = 0;
     token = args[index];
 
@@ -152,15 +254,16 @@ int input_interpreter(char * input, int size) {
             args[index + 1] = NULL;
         }
 
-        
         index += 1;
         token = args[index];
+        //strcpy(token, args[index]);
     }
 
 
-    if((status = internal_command(input)) == 0) { // checking and running commands if they are custom to this shell
+    if((status = internal_command(args[0])) == 0) { // checking and running commands if they are custom to this shell
         status = exec_fun(args[0], args);
     }
+
 
     dup2(saved_stdin, STDIN_FILENO); // Changing back the STD In and Out, whether they have been modfied of not
     dup2(saved_stdout, STDOUT_FILENO);
@@ -193,8 +296,10 @@ void process_inputs() {
                 print_exit();
                 exit(EXIT_SUCCESS);
             }
+
             clock_gettime(_POSIX_MONOTONIC_CLOCK, &start_time); 
-            status = input_interpreter(input, byteread);
+            char ** args = input_formater(input, byteread);
+            status = input_interpreter(args);
             clock_gettime(_POSIX_MONOTONIC_CLOCK, &end_time);
 
             elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_nsec - start_time.tv_nsec) / 1e6; // Convert time to ms
