@@ -19,6 +19,10 @@ void print_to_exit() {
     print_message(TO_EXIT_MESSAGE);
 }
 
+void print_exit() {
+    print_message(EXIT_MESSAGE);
+}
+
 void print_header() {
     print_message(HEADER);
 }
@@ -37,6 +41,14 @@ void read_error() {
 
 void fork_error() {
     print_error(FORK_ERROR);
+}
+
+int internal_command(char * input) {
+    if(strcmp(input, "exit") == 0) {
+        print_exit();
+        exit(EXIT_SUCCESS);
+    } 
+    return 0;
 }
 
 int exec_fun(char * input) {
@@ -61,18 +73,27 @@ int exec_fun(char * input) {
 
 int input_interpreter(char * input, int size) {
     input[size - 1] = '\0'; // remove the '\n'
-    exec_fun(input);
+
+    if(internal_command(input) == 0) { // checking and running commands if they are custom to this shell
+        exec_fun(input);
+    }
+
     return 0;
 }
 
 void process_inputs() {
     char input[MAX_INPUT_SIZE];
     ssize_t byteread;
-    while(1) { // Boucle infini de lecture des inputs utilisateurs.
+    while(1) { // Infinite loop reading the input of the users.
 
         if((byteread = read(STDIN_FILENO, input, sizeof(input))) == -1) {
             read_error();
         } else {
+            if(byteread == 0) {
+                print_exit();
+                exit(EXIT_SUCCESS);
+            }
+
             input_interpreter(input, byteread);
         }
         print_header();
