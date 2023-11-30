@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <stdlib.h>
 
 
@@ -63,6 +66,13 @@ void exec_error() {
     print_error(EXEC_ERROR);
 }
 
+void open_error() {
+    print_error(OPEN_ERROR);
+}
+void fstat_error(){
+    print_error(FSTAT_ERROR);
+}
+
 int internal_command(char * input) {
     if(strcmp(input, "exit") == 0) {
         print_exit();
@@ -71,7 +81,7 @@ int internal_command(char * input) {
     return 0;
 }
 
-int exec_fun(char * input, char * args[]) {
+int exec_fun(char * args[]) {
     int status;
     __pid_t pid;
     if((pid = fork()) == -1) {
@@ -79,8 +89,8 @@ int exec_fun(char * input, char * args[]) {
     }
 
     if(pid == 0) { // I'm the son
-
-        execvp(input, args);
+ 
+        execvp(args[0], args);
         exec_error();
         exit(EXIT_FAILURE);
 
@@ -93,8 +103,63 @@ int exec_fun(char * input, char * args[]) {
     return status;
 } 
 
+int Write_file(char ** args){
+    int index = 0;
+    int status = 0;
+
+        while(args[index]!=NULL){
+        if (strcmp(args[index],">")  && (index > 0) && (args[index + 1]!=NULL)){
+            int OUTPUT = dup(STDOUT_FILENO);
+            char* filename = args[index+1];
+            status = exec_fun(args);
+            dup2(STDOUT_FILENO,OUTPUT);
+            struct stat statBuffer;
+            if (fstat(OUTPUT, &statBuffer) == -1) {
+                close(OUTPUT);
+                fstat_error();
+                status = -1;
+            }
+            int buffer_size = statBuffer.st_blksize;
+            char write_buffer[buffer_size];
+            ssize_t bytesRead, bytesWritten;
+            int file_fd = open(filename,  O_WRONLY | O_CREAT | O_EXCL,statBuffer.st_mode);
+
+            if(file_fd  == -1){
+                close(file_fd);
+                open_error();
+                status = -1;
+
+            }
+
+            while ((bytesRead = read(OUTPUT, write_buffer, sizeof(write_buffer))) > 0) {
+                bytesWritten = write(file_fd, write_buffer, bytesRead);
+                if (bytesWritten != bytesRead) {
+                    close(OUTPUT);
+                    close(file_fd);
+                    write_error();
+                    status = -1;  
+                }
+            }
+            if(bytesRead == -1){
+                close(OUTPUT);
+                close(file_fd);
+                read_error();
+                status = -1;
+            }
+        }
+        index++;
+    }
+    
+    return status;
+}
+
 int input_interpreter(char * input, int size) {
     int status;
+    int pipefd[2];
+
+    if(pipe(pipefd) == -1){
+        print_error(PIPE_ERROR);
+    }
     input[size - 1] = '\0'; // remove the '\n'
 
     char ** args = malloc(sizeof(char *) * strlen(input));
@@ -110,13 +175,16 @@ int input_interpreter(char * input, int size) {
 
     args[index] = NULL; // Adding the NULL value so the execvp know it's the end of the args
 
-
     if((status = internal_command(input)) == 0) { // checking and running commands if they are custom to this shell
-        status = exec_fun(args[0], args);
+        status = Write_file(args);
+        status = exec_fun(args);        
     }
 
     return status;
 }
+
+
+
 
 void process_inputs() {
     char input[MAX_INPUT_SIZE];
