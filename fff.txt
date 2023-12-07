@@ -1,0 +1,10 @@
+Makefile
+README.md
+enseash
+f.txt
+fff.txt
+fs.txt
+include
+main.c
+main.o
+src

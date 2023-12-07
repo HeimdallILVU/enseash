@@ -76,6 +76,18 @@ int internal_command(char * input) {
     return 0;
 }
 
+void print_args(char * args[]) {
+    char * token = args[0];
+    int index = 0;
+    while (token != NULL)  {
+        print_message(token);
+        print_message(" ");
+        index += 1;
+        token = args[index];
+    }
+    print_message("\n");
+}
+
 int exec_fun(char * input, char * args[]) {
     int status;
     __pid_t pid;
@@ -114,20 +126,23 @@ void splitArrays(char* inputStrings[], int numStrings, char*** before, char*** a
     }
 
     // Allocate memory for the "before" array
-    *before = (char**)malloc(index * sizeof(char*));
+    *before = (char**)malloc((index + 1)* sizeof(char*));
 
     // Copy strings before "|"
     for (int i = 0; i < index; i++) {
         (*before)[i] = strdup(inputStrings[i]);
     }
 
+    (*before)[index] = NULL;
+
     // Allocate memory for the "after" array
-    *after = (char**)malloc((numStrings - index) * sizeof(char*));
+    *after = (char**)malloc((numStrings - index + 1) * sizeof(char*));
 
     // Copy strings after "|"
-    for (int i = index; i < numStrings; i++) {
-        (*after)[i - index] = strdup(inputStrings[i]);
+    for (int i = index + 1 ; i <= numStrings; i++) {
+        (*after)[i - index - 1] = strdup(inputStrings[i]);
     }
+    (*after)[numStrings - index + 1] = NULL;
 }
 
 char ** input_formater(char * input, int size) {
@@ -158,10 +173,11 @@ int get_number_of_args(char * args[]) {
         index += 1;
         token = args[index];
     }
-    return index -1;
+    return index - 1;
 }
 
 int input_interpreter(char ** args) {
+
     int status;
 
     int saved_stdin = -1; // Saving the STD In and Out in case they are modfified later on.
@@ -175,9 +191,11 @@ int input_interpreter(char ** args) {
 
     int size = get_number_of_args(args);
 
+
+
     while(token != NULL) { // Looking for '|' in the args
         if(strcmp(token, "|") == 0) {
-            // Cutting args in two, before and after, and running then as separate inputs but with dup2(STDOUT, STDIN)
+            // Cutting args in two, before and after, and running then as separate inputs but with pipe taking STDOUT and writing it to STDIN
 
             char ** args1;
             char ** args2;
@@ -185,7 +203,6 @@ int input_interpreter(char ** args) {
             //makes args1 and args2 from args
 
             splitArrays(args, size, &args1, &args2);
-            args2 += 1;
             
             int pipe_fd[2];
             int ret;
@@ -201,8 +218,10 @@ int input_interpreter(char ** args) {
 
             if(pid == 0) { // I'm the son
                 close(pipe_fd[0]);
+                int saved_stdout = dup(STDOUT_FILENO);
                 dup2(pipe_fd[1], STDOUT_FILENO);
                 execvp(args1[0], args1);
+                dup2(saved_stdout, STDOUT_FILENO);
                 close(pipe_fd[1]);
                 exit(EXIT_SUCCESS);
 
@@ -297,12 +316,16 @@ void process_inputs() {
                 exit(EXIT_SUCCESS);
             }
 
-            clock_gettime(_POSIX_MONOTONIC_CLOCK, &start_time); 
-            char ** args = input_formater(input, byteread);
-            status = input_interpreter(args);
-            clock_gettime(_POSIX_MONOTONIC_CLOCK, &end_time);
+            if(byteread != 1) {
+                clock_gettime(_POSIX_MONOTONIC_CLOCK, &start_time); 
+                char ** args = input_formater(input, byteread);
+                status = input_interpreter(args);
+                clock_gettime(_POSIX_MONOTONIC_CLOCK, &end_time);
 
-            elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_nsec - start_time.tv_nsec) / 1e6; // Convert time to ms
+                elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_nsec - start_time.tv_nsec) / 1e6; // Convert time to ms
+            }
+
+
 
         }
 
