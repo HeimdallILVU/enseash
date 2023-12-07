@@ -72,6 +72,9 @@ void open_error() {
 void fstat_error(){
     print_error(FSTAT_ERROR);
 }
+void dup_error(){
+    print_error(DUP_ERROR);
+}
 
 int internal_command(char * input) {
     if(strcmp(input, "exit") == 0) {
@@ -103,60 +106,9 @@ int exec_fun(char * args[]) {
     return status;
 } 
 
-int Write_file(char ** args){
-    int index = 0;
-    int status = 0;
-
-        while(args[index]!=NULL){
-        if (strcmp(args[index],">")  && (index > 0) && (args[index + 1]!=NULL)){
-            int OUTPUT = dup(STDOUT_FILENO);
-            char* filename = args[index+1];
-            status = exec_fun(args);
-            dup2(STDOUT_FILENO,OUTPUT);
-            struct stat statBuffer;
-            if (fstat(OUTPUT, &statBuffer) == -1) {
-                close(OUTPUT);
-                fstat_error();
-                status = -1;
-            }
-            int buffer_size = statBuffer.st_blksize;
-            char write_buffer[buffer_size];
-            ssize_t bytesRead, bytesWritten;
-            int file_fd = open(filename,  O_WRONLY | O_CREAT | O_EXCL,statBuffer.st_mode);
-
-            if(file_fd  == -1){
-                close(file_fd);
-                open_error();
-                status = -1;
-
-            }
-
-            while ((bytesRead = read(OUTPUT, write_buffer, sizeof(write_buffer))) > 0) {
-                bytesWritten = write(file_fd, write_buffer, bytesRead);
-                if (bytesWritten != bytesRead) {
-                    close(OUTPUT);
-                    close(file_fd);
-                    write_error();
-                    status = -1;  
-                }
-            }
-            if(bytesRead == -1){
-                close(OUTPUT);
-                close(file_fd);
-                read_error();
-                status = -1;
-            }
-        }
-        index++;
-    }
-    
-    return status;
-}
-
 int input_interpreter(char * input, int size) {
     int status;
     int pipefd[2];
-
     if(pipe(pipefd) == -1){
         print_error(PIPE_ERROR);
     }
@@ -166,17 +118,32 @@ int input_interpreter(char * input, int size) {
     char * token;
     int index = 0;
     token = strtok(input, SEPARATOR); // Cut the input string into arguments using the SEPARATOR as Separator. "hostname -i" -> "hostname" "-i"
- 
+
     while(token != NULL) {
         args[index] = token;
         index += 1;
         token = strtok(NULL, SEPARATOR);
     }
-
     args[index] = NULL; // Adding the NULL value so the execvp know it's the end of the args
+    index = 0;
+    while(args[index] != NULL){
+        if(strcmp(args[index],">")==0){
+            int file_fd;
+            if((file_fd = open(args[index+1],O_RDWR|O_CREAT|O_APPEND,0666)) == -1){
+                open_error();
+                exit(EXIT_FAILURE);
+            }
+            if(dup2(file_fd,STDOUT_FILENO)==-1){
+                dup_error();
+                exit(EXIT_FAILURE);
+            }
+            args[index] = NULL;
+            args[index+1] = NULL;
+        }
+        index ++;
+    }
 
     if((status = internal_command(input)) == 0) { // checking and running commands if they are custom to this shell
-        status = Write_file(args);
         status = exec_fun(args);        
     }
 
@@ -206,7 +173,12 @@ void process_inputs() {
                 exit(EXIT_SUCCESS);
             }
             clock_gettime(_POSIX_MONOTONIC_CLOCK, &start_time); 
+            int save_out = dup(STDOUT_FILENO);
             status = input_interpreter(input, byteread);
+            if(dup2(save_out,STDOUT_FILENO)==-1){
+                dup_error();
+                exit(EXIT_FAILURE);            
+            }
             clock_gettime(_POSIX_MONOTONIC_CLOCK, &end_time);
 
             elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_nsec - start_time.tv_nsec) / 1e6; // Convert time to ms

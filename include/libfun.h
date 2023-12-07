@@ -9,6 +9,7 @@
 #define PIPE_ERROR "Erreur lors de la création d'un pipe.\n"
 #define OPEN_ERROR "Erreur lors de l'ouverture/création d'un fichier.\n"
 #define FSTAT_ERROR "Erreur lors d'un fstat.\n"
+#define DUP_ERROR "Erreur lors de la redirection d'un fd. \n"
 
 
 
