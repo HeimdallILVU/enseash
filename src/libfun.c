@@ -12,6 +12,7 @@
 
 #include "libfun.h"
 
+
 void print_message(char * message) {
     write(STDOUT_FILENO, message, strlen(message));
 }
@@ -309,8 +310,6 @@ void process_inputs() {
             read_error();
         } else {
 
-            
-
             if(byteread == 0) {
                 print_exit();
                 exit(EXIT_SUCCESS);
@@ -324,9 +323,6 @@ void process_inputs() {
 
                 elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + (end_time.tv_nsec - start_time.tv_nsec) / 1e6; // Convert time to ms
             }
-
-
-
         }
 
         if (WIFEXITED(status)) { // Change the Header following the returned status of the previous command

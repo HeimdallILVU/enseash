@@ -1,0 +1,15 @@
+total 68
+drwxr-xr-x  5 heimdall heimdall  4096 Dec  7 09:16 .
+drwxr-x--- 14 heimdall heimdall  4096 Dec  7 09:03 ..
+drwxr-xr-x  8 heimdall heimdall  4096 Dec  7 09:03 .git
+-rw-r--r--  1 heimdall heimdall   318 Nov 30 07:56 Makefile
+-rw-r--r--  1 heimdall heimdall    10 Nov 30 07:54 README.md
+-rw-r--r--  1 heimdall heimdall     0 Dec  7 09:16 a.txt
+-rwxr-xr-x  1 heimdall heimdall 17536 Dec  7 09:15 enseash
+-rw-r--r--  1 heimdall heimdall    59 Nov 30 11:43 f.txt
+-rw-r--r--  1 heimdall heimdall    74 Dec  7 08:44 fff.txt
+-rw-r--r--  1 heimdall heimdall    66 Dec  7 07:56 fs.txt
+drwxr-xr-x  2 heimdall heimdall  4096 Nov 30 07:54 include
+-rw-r--r--  1 heimdall heimdall   128 Nov 30 08:15 main.c
+-rw-r--r--  1 heimdall heimdall  1560 Nov 30 08:15 main.o
+drwxr-xr-x  2 heimdall heimdall  4096 Dec  7 09:15 src
